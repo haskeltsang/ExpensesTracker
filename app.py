@@ -21,7 +21,7 @@ login_manager.session_protection = "strong"
 def get_db_connection():
     try:
         conn = mysql.connector.connect(
-            host=os.environ.get('MYSQL_HOST', 'localhost'),
+            host=os.environ.get('MYSQL_HOST', 'db'),
             user=os.environ.get('MYSQL_USER', 'mysql_user'),
             password=os.environ.get('MYSQL_PASSWORD', 'mysql_user'),
             database=os.environ.get('MYSQL_DATABASE', 'expense')
