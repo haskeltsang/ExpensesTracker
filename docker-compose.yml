@@ -1,0 +1,42 @@
+
+services:
+  web:
+    container_name: '${PROJECT_DOMAIN}-web'
+    build: .
+    ports:
+      - "${HTTP_PORT}:5000"
+    volumes:
+      - .:/app
+    environment:
+      - FLASK_ENV=development
+      - MYSQL_HOST=db
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - TZ=${TZ}
+    depends_on:
+      - db
+
+  db:
+    container_name: '${PROJECT_DOMAIN}-db'
+    image: '${DATABASE}'
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    command: ['mysqld', '--character-set-server=utf8mb4', '--collation-server=utf8mb4_general_ci','--default-time-zone=+08:00']
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+
+  adminer:
+    container_name: '${PROJECT_DOMAIN}-adminer'
+    hostname: adminer
+    image: adminer
+    restart: always
+    ports:
+        - ${ADMINER_PORT}:8080
+volumes:
+  mysql_data:
