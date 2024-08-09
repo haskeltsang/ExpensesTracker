@@ -255,7 +255,7 @@ def export():
         io.BytesIO(output.getvalue().encode('utf-8')),
         mimetype='text/csv',
         as_attachment=True,
-        download_name='expenses_summary.csv'
+        download_name=f'expenses_summary_{today.strftime("%Y-%m-%d")}.csv'
     )
 
 @app.route('/history', methods=['GET', 'POST'])
