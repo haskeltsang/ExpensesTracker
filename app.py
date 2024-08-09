@@ -120,24 +120,29 @@ def index():
     week_start = today - timedelta(days=(today.weekday() - 0) % 7)
     week_end = week_start + timedelta(days=6)
 
+    # Fetch expenses for the current week
     c.execute('SELECT * FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s',
               (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     expenses = c.fetchall()
 
+    # Calculate weekly total
     c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s',
               (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     weekly_total = c.fetchone()[0] or 0.0
 
-    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s',
-              (current_user.id, 'TB(AS)'))
+    # Calculate TB(AS) total for the current week
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s',
+              (current_user.id, 'TB(AS)', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     tb_as_total = c.fetchone()[0] or 0.0
 
-    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s',
-              (current_user.id, 'TB'))
+    # Calculate TB total for the current week
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s',
+              (current_user.id, 'TB', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     tb_total = c.fetchone()[0] or 0.0
 
     conn.close()
     return render_template('index.html', expenses=expenses, weekly_total=weekly_total, tb_as_total=tb_as_total, tb_total=tb_total)
+
 
 @app.route('/add', methods=['POST'])
 @login_required
