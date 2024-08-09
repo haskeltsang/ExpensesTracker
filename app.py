@@ -7,11 +7,14 @@ import csv
 import io
 import os
 from datetime import datetime, timedelta
+from itsdangerous import URLSafeSerializer, URLSafeTimedSerializer
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'your_default_secret_key')
+app.config['SECRET_KEY'] = 'your_default_secret_key'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=15)
 app.config['SESSION_PROTECTION'] = 'strong'
+serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -64,52 +67,6 @@ def init_db():
     cursor.close()
     conn.close()
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute('INSERT INTO users (username, password) VALUES (%s, %s)', (username, hashed_password))
-        conn.commit()
-        conn.close()
-
-        flash('Registration successful! Please log in.', 'success')
-        return redirect(url_for('login'))
-    return render_template('register.html')
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-
-        conn = get_db_connection()
-        c = conn.cursor()
-        c.execute('SELECT id, password FROM users WHERE username = %s', (username,))
-        user = c.fetchone()
-
-        if user and bcrypt.checkpw(password.encode('utf-8'), user[1].encode('utf-8')):
-            user_id = user[0]
-            user = User(user_id)
-            login_user(user)
-            flash('Login successful!', 'success')
-            return redirect(url_for('index'))
-        else:
-            flash('Invalid username or password', 'danger')
-
-    return render_template('login.html')
-
-@app.route('/logout', methods=['POST'])
-@login_required
-def logout():
-    logout_user()
-    flash('Logged out successfully!', 'success')
-    return redirect(url_for('login'))
-
 @app.route('/')
 @login_required
 def index():
@@ -140,8 +97,76 @@ def index():
               (current_user.id, 'TB', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     tb_total = c.fetchone()[0] or 0.0
 
+    # Generate signed URLs for amend and delete actions
+    expenses_with_links = []
+    for expense in expenses:
+        amend_url = url_for('amend_expense', token=serializer.dumps(expense[0]))
+        delete_url = url_for('delete_expense', token=serializer.dumps(expense[0]))
+        expenses_with_links.append({
+            'id': expense[0],
+            'date': expense[2],
+            'description': expense[3],
+            'amount': expense[4],
+            'amend_url': amend_url,
+            'delete_url': delete_url
+        })
+
     conn.close()
-    return render_template('index.html', expenses=expenses, weekly_total=weekly_total, tb_as_total=tb_as_total, tb_total=tb_total)
+    return render_template('index.html', 
+                           expenses=expenses_with_links, 
+                           weekly_total=weekly_total, 
+                           tb_as_total=tb_as_total, 
+                           tb_total=tb_total)
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute('INSERT INTO users (username, password) VALUES (%s, %s)', (username, hashed_password))
+        conn.commit()
+        conn.close()
+
+        flash('Registration successful! Please log in.', 'success')
+        return redirect(url_for('login'))
+    return render_template('register.html')
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        conn = get_db_connection()
+        c = conn.cursor()
+        c.execute('SELECT id, password FROM users WHERE username = %s', (username,))
+        user = c.fetchone()
+
+        if user and bcrypt.checkpw(password.encode('utf-8'), user[1].encode('utf-8')):
+            user_id = user[0]
+            user = User(user_id)
+            login_user(user)
+            flash('Login successful!', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Invalid username or password', 'danger')
+
+    return render_template('login.html')
+
+@app.route('/logout', methods=['POST'])
+@login_required
+def logout():
+    logout_user()
+    flash('Logged out successfully!', 'success')
+    return redirect(url_for('login'))
+
+
+
 
 
 @app.route('/add', methods=['POST'])
@@ -161,16 +186,25 @@ def add_expense():
     flash('Expense added successfully!', 'success')
     return redirect(url_for('index'))
 
-@app.route('/delete/<int:id>')
+@app.route('/delete/<token>', methods=['POST'])
 @login_required
-def delete_expense(id):
+def delete_expense(token):
+    try:
+        id = serializer.loads(token)
+    except:
+        flash('Invalid link', 'danger')
+        return redirect(url_for('index'))
+
     conn = get_db_connection()
     c = conn.cursor()
     c.execute('DELETE FROM expenses WHERE id = %s AND user_id = %s', (id, current_user.id))
     conn.commit()
     conn.close()
+
     flash('Expense deleted successfully!', 'success')
     return redirect(url_for('index'))
+
+
 
 @app.route('/export', methods=['GET'])
 @login_required
@@ -273,6 +307,41 @@ def history():
 
     conn.close()
     return render_template('history.html', expenses=expenses, weekly_total=weekly_total, tb_as_total=tb_as_total, tb_total=tb_total)
+
+@app.route('/amend/<token>', methods=['GET', 'POST'])
+@login_required
+def amend_expense(token):
+    try:
+        id = serializer.loads(token)
+    except:
+        flash('Invalid link', 'danger')
+        return redirect(url_for('index'))
+
+    conn = get_db_connection()
+    c = conn.cursor()
+
+    # Fetch the specific expense
+    c.execute('SELECT * FROM expenses WHERE id = %s AND user_id = %s', (id, current_user.id))
+    expense = c.fetchone()
+
+    if request.method == 'POST':
+        description = request.form['description']
+        amount = request.form['amount']
+
+        # Update the expense
+        c.execute('UPDATE expenses SET description = %s, amount = %s WHERE id = %s AND user_id = %s',
+                  (description, amount, id, current_user.id))
+        conn.commit()
+        conn.close()
+
+        flash('Expense amended successfully!', 'success')
+        return redirect(url_for('index'))
+
+    conn.close()
+    return render_template('amend.html', expense=expense)
+
+
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)

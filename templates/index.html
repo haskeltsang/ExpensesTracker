@@ -101,7 +101,6 @@
                 </div>
             </div>
         </div>
-
         <!-- Expenses List -->
         <div class="card">
             <div class="card-header">
@@ -120,11 +119,14 @@
                     <tbody>
                         {% for expense in expenses %}
                         <tr>
-                            <td>{{ expense[2] }}</td>
-                            <td>{{ expense[3] }}</td>
-                            <td>${{ expense[4] }}</td>
+                            <td>{{ expense.date }}</td>
+                            <td>{{ expense.description }}</td>
+                            <td>${{ expense.amount }}</td>
                             <td>
-                                <a href="{{ url_for('delete_expense', id=expense[0]) }}" class="btn btn-danger btn-sm">Delete</a>
+                                <a href="{{ expense.amend_url }}" class="btn btn-warning">Amend</a>
+                                <form action="{{ expense.delete_url }}" method="POST" style="display:inline;" onsubmit="return confirmDelete();">
+                                    <button type="submit" class="btn btn-danger">Delete</button>
+                                </form>
                             </td>
                         </tr>
                         {% endfor %}
@@ -136,5 +138,10 @@
 
     <!-- Bootstrap JS and dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function confirmDelete() {
+            return confirm("Are you sure you want to delete this expense?");
+        }
+    </script>
 </body>
 </html>
