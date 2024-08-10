@@ -90,9 +90,9 @@
                 <h3>Weekly Summary</h3>
             </div>
             <div class="card-body">
-                <p>Total expenses for this week: <strong>${{ weekly_total }}</strong></p>
-                <p>Total expenses for TB(AS): <strong>${{ tb_as_total }}</strong></p>
-                <p>Total expenses for TB: <strong>${{ tb_total }}</strong></p>
+                <p>Total expenses for this week: <strong>HK${{ weekly_total }}</strong></p>
+                <p>Total expenses for TB(AS): <strong>HK${{ tb_as_total }}</strong></p>
+                <p>Total expenses for TB: <strong>HK${{ tb_total }}</strong></p>
                 <div class="mt-4">
                     <form action="{{ url_for('export') }}" method="GET">
                         <input type="hidden" name="start_date" value="{{ start_date }}">
@@ -121,7 +121,7 @@
                         <tr>
                             <td>{{ expense.date }}</td>
                             <td>{{ expense.description }}</td>
-                            <td>${{ expense.amount }}</td>
+                            <td>HK${{ expense.amount }}</td>
                             <td>
                                 <a href="{{ expense.amend_url }}" class="btn btn-warning">Amend</a>
                                 <form action="{{ expense.delete_url }}" method="POST" style="display:inline;" onsubmit="return confirmDelete();">

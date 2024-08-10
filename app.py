@@ -77,25 +77,26 @@ def index():
     week_start = today - timedelta(days=(today.weekday() - 0) % 7)
     week_end = week_start + timedelta(days=6)
 
-    # Fetch expenses for the current week
-    c.execute('SELECT * FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s',
-              (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+    # Fetch expenses for the current week excluding deleted ones
+    c.execute('SELECT * FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+            (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     expenses = c.fetchall()
 
-    # Calculate weekly total
-    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s',
-              (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+    # Calculate weekly total excluding deleted expenses
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+            (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     weekly_total = c.fetchone()[0] or 0.0
 
-    # Calculate TB(AS) total for the current week
-    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s',
-              (current_user.id, 'TB(AS)', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+    # Calculate TB(AS) total for the current week excluding deleted expenses
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+            (current_user.id, 'TB(AS)', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     tb_as_total = c.fetchone()[0] or 0.0
 
-    # Calculate TB total for the current week
-    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s',
-              (current_user.id, 'TB', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+    # Calculate TB total for the current week excluding deleted expenses
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+            (current_user.id, 'TB', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     tb_total = c.fetchone()[0] or 0.0
+
 
     # Generate signed URLs for amend and delete actions
     expenses_with_links = []
@@ -197,12 +198,16 @@ def delete_expense(token):
 
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute('DELETE FROM expenses WHERE id = %s AND user_id = %s', (id, current_user.id))
+    deleted_at = datetime.now()
+
+    # Mark the expense as deleted by setting the deleted_at timestamp
+    c.execute('UPDATE expenses SET deleted_at = %s WHERE id = %s AND user_id = %s', (deleted_at, id, current_user.id))
     conn.commit()
     conn.close()
 
     flash('Expense deleted successfully!', 'success')
     return redirect(url_for('index'))
+
 
 
 
@@ -216,21 +221,26 @@ def export():
     week_start = today - timedelta(days=(today.weekday() - 0) % 7)
     week_end = week_start + timedelta(days=6)
 
-    c.execute('SELECT * FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s',
-              (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+    # Fetch expenses for the current week excluding deleted ones
+    c.execute('SELECT * FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+            (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     expenses = c.fetchall()
 
-    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s',
-              (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+    # Calculate weekly total excluding deleted expenses
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+            (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     weekly_total = c.fetchone()[0] or 0.0
 
-    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND description = %s',
-              (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d'), 'TB(AS)'))
+    # Calculate TB(AS) total for the current week excluding deleted expenses
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+            (current_user.id, 'TB(AS)', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     tb_as_total = c.fetchone()[0] or 0.0
 
-    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND description = %s',
-              (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d'), 'TB'))
+    # Calculate TB total for the current week excluding deleted expenses
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+            (current_user.id, 'TB', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     tb_total = c.fetchone()[0] or 0.0
+
 
     conn.close()
 
@@ -257,7 +267,6 @@ def export():
         as_attachment=True,
         download_name=f'expenses_summary_{today.strftime("%Y-%m-%d")}.csv'
     )
-
 @app.route('/history', methods=['GET', 'POST'])
 @login_required
 def history():
@@ -269,44 +278,54 @@ def history():
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
         end_date = start_date + timedelta(days=6)
 
-        c.execute('SELECT * FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s',
-                  (current_user.id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
+        # Fetch expenses for the selected week excluding deleted ones
+        c.execute('SELECT * FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+                (current_user.id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
         expenses = c.fetchall()
 
-        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s',
-                  (current_user.id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
+        # Calculate weekly total excluding deleted expenses
+        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+                (current_user.id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
         weekly_total = c.fetchone()[0] or 0.0
 
-        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s',
-                  (current_user.id, 'TB(AS)', start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
+        # Calculate TB(AS) total for the selected week excluding deleted expenses
+        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+                (current_user.id, 'TB(AS)', start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
         tb_as_total = c.fetchone()[0] or 0.0
 
-        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s',
-                  (current_user.id, 'TB', start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
+        # Calculate TB total for the selected week excluding deleted expenses
+        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+                (current_user.id, 'TB', start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
         tb_total = c.fetchone()[0] or 0.0
 
     else:
         today = datetime.today()
         week_start = today - timedelta(days=(today.weekday() - 0) % 7)
         week_end = week_start + timedelta(days=6)
-        c.execute('SELECT * FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s',
+
+        # Fetch expenses for the current week excluding deleted ones
+        c.execute('SELECT * FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
                   (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
         expenses = c.fetchall()
 
-        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s',
+        # Calculate weekly total excluding deleted expenses
+        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
                   (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
         weekly_total = c.fetchone()[0] or 0.0
 
-        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s',
+        # Calculate TB(AS) total for the current week excluding deleted expenses
+        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
                   (current_user.id, 'TB(AS)', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
         tb_as_total = c.fetchone()[0] or 0.0
 
-        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s',
+        # Calculate TB total for the current week excluding deleted expenses
+        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
                   (current_user.id, 'TB', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
         tb_total = c.fetchone()[0] or 0.0
 
     conn.close()
     return render_template('history.html', expenses=expenses, weekly_total=weekly_total, tb_as_total=tb_as_total, tb_total=tb_total)
+
 
 @app.route('/amend/<token>', methods=['GET', 'POST'])
 @login_required
@@ -327,10 +346,11 @@ def amend_expense(token):
     if request.method == 'POST':
         description = request.form['description']
         amount = request.form['amount']
+        updated_at = datetime.now()
 
-        # Update the expense
-        c.execute('UPDATE expenses SET description = %s, amount = %s WHERE id = %s AND user_id = %s',
-                  (description, amount, id, current_user.id))
+        # Update the expense with new values and update the updated_at timestamp
+        c.execute('UPDATE expenses SET description = %s, amount = %s, updated_at = %s WHERE id = %s AND user_id = %s',
+                  (description, amount, updated_at, id, current_user.id))
         conn.commit()
         conn.close()
 

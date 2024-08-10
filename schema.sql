@@ -10,5 +10,8 @@ CREATE TABLE IF NOT EXISTS expenses (
     date DATE NOT NULL,
     description VARCHAR(255) NOT NULL,
     amount DECIMAL(10, 2) NOT NULL,
+    updated_at TIMESTAMP NULL DEFAULT NULL,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
+
