@@ -91,17 +91,19 @@
             </div>
             <div class="card-body">
                 <p>Total expenses for this week: <strong>HK${{ weekly_total }}</strong></p>
+                <p>Total expenses for others: <strong>HK${{ non_tb_total }}</strong></p>
                 <p>Total expenses for all TB: <strong>HK${{ all_tb_total }}</strong></p>
                 <p>Total expenses for TB(AS): <strong>HK${{ tb_as_total }}</strong></p>
                 <p>Total expenses for TB: <strong>HK${{ tb_total }}</strong></p>
                 <div class="mt-4">
-                    <form action="{{ url_for('export') }}" method="GET">
+                    <form action="{{ url_for('export_to_pdf') }}" method="GET">
                         <input type="hidden" name="start_date" value="{{ start_date }}">
-                        <button type="submit" class="btn btn-success">Export to CSV</button>
+                        <button type="submit" class="btn btn-danger">Export to PDF</button>
                     </form>
                 </div>
             </div>
         </div>
+
         <!-- Expenses List -->
         <div class="card">
             <div class="card-header">

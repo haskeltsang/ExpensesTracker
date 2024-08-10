@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from dotenv import load_dotenv
+from fpdf import FPDF
 import mysql.connector
 from mysql.connector import errorcode
 import bcrypt
@@ -81,29 +82,33 @@ def index():
 
     # Fetch expenses for the current week excluding deleted ones
     c.execute('SELECT * FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
-            (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+              (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     expenses = c.fetchall()
 
     # Calculate weekly total excluding deleted expenses
     c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
-            (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+              (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     weekly_total = c.fetchone()[0] or 0.0
 
     # Calculate all TB for the current week excluding deleted expenses
     c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description LIKE %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
-            (current_user.id, 'TB%', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+              (current_user.id, 'TB%', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     all_tb_total = c.fetchone()[0] or 0.0
 
     # Calculate TB(AS) total for the current week excluding deleted expenses
     c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
-            (current_user.id, 'TB(AS)', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+              (current_user.id, 'TB(AS)', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     tb_as_total = c.fetchone()[0] or 0.0
 
     # Calculate TB total for the current week excluding deleted expenses
     c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
-            (current_user.id, 'TB', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+              (current_user.id, 'TB', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     tb_total = c.fetchone()[0] or 0.0
 
+    # Calculate total for items not starting with "TB"
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description NOT LIKE %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+              (current_user.id, 'TB%', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+    non_tb_total = c.fetchone()[0] or 0.0
 
     # Generate signed URLs for amend and delete actions
     expenses_with_links = []
@@ -125,7 +130,8 @@ def index():
                            weekly_total=weekly_total, 
                            all_tb_total=all_tb_total, 
                            tb_as_total=tb_as_total, 
-                           tb_total=tb_total)
+                           tb_total=tb_total, 
+                           non_tb_total=non_tb_total)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -220,9 +226,13 @@ def delete_expense(token):
 
 
 
+from fpdf import FPDF
+from flask import send_file
+import io
+
 @app.route('/export', methods=['GET'])
 @login_required
-def export():
+def export_to_pdf():
     conn = get_db_connection()
     c = conn.cursor()
 
@@ -232,56 +242,93 @@ def export():
 
     # Fetch expenses for the current week excluding deleted ones
     c.execute('SELECT * FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
-            (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+              (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     expenses = c.fetchall()
 
     # Calculate weekly total excluding deleted expenses
     c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
-            (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+              (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     weekly_total = c.fetchone()[0] or 0.0
 
     # Calculate all TB total for the current week excluding deleted expenses
     c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description LIKE %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
-            (current_user.id, 'TB%', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+              (current_user.id, 'TB%', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     all_tb_total = c.fetchone()[0] or 0.0
 
     # Calculate TB(AS) total for the current week excluding deleted expenses
     c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
-            (current_user.id, 'TB(AS)', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+              (current_user.id, 'TB(AS)', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     tb_as_total = c.fetchone()[0] or 0.0
 
     # Calculate TB total for the current week excluding deleted expenses
     c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
-            (current_user.id, 'TB', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+              (current_user.id, 'TB', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     tb_total = c.fetchone()[0] or 0.0
 
+    # Calculate total for items not starting with "TB"
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description NOT LIKE %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+              (current_user.id, 'TB%', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+    non_tb_total = c.fetchone()[0] or 0.0
 
     conn.close()
 
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=['Date', 'Description', 'Amount'])
-    writer.writeheader()
+    # Create a PDF
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+
+    # Add a title
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, f"Expenses Summary from {week_start.strftime('%Y-%m-%d')} to {today.strftime('%Y-%m-%d')}", 0, 1, 'C')
+
+    # Add header row
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(40, 10, "Date", 1, 0, 'C')
+    pdf.cell(80, 10, "Description", 1, 0, 'C')
+    pdf.cell(40, 10, "Amount", 1, 1, 'C')
+
+    # Add data rows
+    pdf.set_font("Arial", size=12)
     for expense in expenses:
-        writer.writerow({
-            'Date': expense[2].strftime('%Y-%m-%d'),
-            'Description': expense[3],
-            'Amount': f"HK${expense[4]:.2f}"
-        })
-    
-    writer.writerow({})
-    writer.writerow({'Date': 'Weekly Total', 'Description': '', 'Amount': f"HK${weekly_total:.2f}"})
-    writer.writerow({'Date': 'All TB', 'Description': '', 'Amount': f"HK${all_tb_total:.2f}"})
-    writer.writerow({'Date': 'Total TB(AS)', 'Description': '', 'Amount': f"HK${tb_as_total:.2f}"})
-    writer.writerow({'Date': 'Total TB', 'Description': '', 'Amount': f"HK${tb_total:.2f}"})
+        pdf.cell(40, 10, expense[2].strftime('%Y-%m-%d'), 1)
+        pdf.cell(80, 10, expense[3], 1)
+        pdf.cell(40, 10, f"HK${expense[4]:.2f}", 1, 1)
 
-    output.seek(0)
+    # Add totals
+    pdf.cell(40, 10, 'Weekly Total', 1)
+    pdf.cell(80, 10, '', 1)
+    pdf.cell(40, 10, f"HK${weekly_total:.2f}", 1, 1)
 
+    pdf.cell(40, 10, 'Others Total', 1)
+    pdf.cell(80, 10, '', 1)
+    pdf.cell(40, 10, f"HK${non_tb_total:.2f}", 1, 1)
+
+    pdf.cell(40, 10, 'All TB', 1)
+    pdf.cell(80, 10, '', 1)
+    pdf.cell(40, 10, f"HK${all_tb_total:.2f}", 1, 1)
+
+    pdf.cell(40, 10, 'Total TB(AS)', 1)
+    pdf.cell(80, 10, '', 1)
+    pdf.cell(40, 10, f"HK${tb_as_total:.2f}", 1, 1)
+
+    pdf.cell(40, 10, 'Total TB', 1)
+    pdf.cell(80, 10, '', 1)
+    pdf.cell(40, 10, f"HK${tb_total:.2f}", 1, 1)
+
+    # Output the PDF to a bytes buffer
+    pdf_output = io.BytesIO()
+    pdf_output.write(pdf.output(dest='S').encode('latin1'))
+    pdf_output.seek(0)
+
+    # Send the PDF as a file download
     return send_file(
-        io.BytesIO(output.getvalue().encode('utf-8')),
-        mimetype='text/csv',
+        pdf_output,
         as_attachment=True,
-        download_name=f'expenses_summary_{today.strftime("%Y-%m-%d")}.csv'
+        download_name=f'expenses_summary_from_{week_start.strftime("%Y-%m-%d")}_to_{today.strftime("%Y-%m-%d")}.pdf',
+        mimetype='application/pdf'
     )
+
+    
 @app.route('/history', methods=['GET', 'POST'])
 @login_required
 def history():
@@ -318,6 +365,12 @@ def history():
                 (current_user.id, 'TB', start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
         tb_total = c.fetchone()[0] or 0.0
 
+            # Calculate total for items not starting with "TB"
+        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description NOT LIKE %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+              (current_user.id, 'TB%', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+        non_tb_total = c.fetchone()[0] or 0.0
+
+
     else:
         today = datetime.today()
         week_start = today - timedelta(days=(today.weekday() - 0) % 7)
@@ -347,9 +400,13 @@ def history():
         c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
                   (current_user.id, 'TB', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
         tb_total = c.fetchone()[0] or 0.0
+            # Calculate total for items not starting with "TB"
+        c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description NOT LIKE %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+              (current_user.id, 'TB%', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+        non_tb_total = c.fetchone()[0] or 0.0
 
     conn.close()
-    return render_template('history.html', expenses=expenses, weekly_total=weekly_total, all_tb_total=all_tb_total, tb_as_total=tb_as_total, tb_total=tb_total)
+    return render_template('history.html', expenses=expenses, weekly_total=weekly_total, all_tb_total=all_tb_total, tb_as_total=tb_as_total, tb_total=tb_total, non_tb_total=non_tb_total)
 
 
 @app.route('/amend/<token>', methods=['GET', 'POST'])
