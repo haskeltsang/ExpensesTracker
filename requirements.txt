@@ -4,3 +4,4 @@ mysql-connector-python
 werkzeug
 bcrypt
 itsdangerous
+python-dotenv

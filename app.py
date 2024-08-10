@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from dotenv import load_dotenv
 import mysql.connector
 from mysql.connector import errorcode
 import bcrypt
@@ -9,9 +10,10 @@ import os
 from datetime import datetime, timedelta
 from itsdangerous import URLSafeSerializer, URLSafeTimedSerializer
 
+load_dotenv()
 app = Flask(__name__)
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'your_default_secret_key')
-app.config['SECRET_KEY'] = 'your_default_secret_key'
+app.secret_key = os.getenv('FLASK_SECRET_KEY')
+app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY')
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=15)
 app.config['SESSION_PROTECTION'] = 'strong'
 serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
@@ -24,10 +26,10 @@ login_manager.session_protection = "strong"
 def get_db_connection():
     try:
         conn = mysql.connector.connect(
-            host=os.environ.get('MYSQL_HOST', 'db'),
-            user=os.environ.get('MYSQL_USER', 'mysql_user'),
-            password=os.environ.get('MYSQL_PASSWORD', 'mysql_user'),
-            database=os.environ.get('MYSQL_DATABASE', 'expense')
+            host=os.getenv('MYSQL_HOST'),
+            user=os.getenv('MYSQL_USER'),
+            password=os.getenv('MYSQL_PASSWORD'),
+            database=os.getenv('MYSQL_DATABASE')
         )
         return conn
     except mysql.connector.Error as err:

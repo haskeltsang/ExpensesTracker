@@ -9,11 +9,15 @@ services:
       - .:/app
     environment:
       - FLASK_ENV=production
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+      - SECRET_KEY=${FLASK_SECRET_KEY}
       - MYSQL_HOST=db
       - MYSQL_DATABASE=${MYSQL_DATABASE}
       - MYSQL_USER=${MYSQL_USER}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
       - TZ=${TZ}
+    env_file:
+      - .env
     depends_on:
       - db
 
