@@ -181,13 +181,14 @@ def logout():
 def add_expense():
     description = request.form['description']
     amount = request.form['amount']
+    updated_at = datetime.now()
 
     today = datetime.today().strftime('%Y-%m-%d')
 
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute('INSERT INTO expenses (user_id, date, description, amount) VALUES (%s, %s, %s, %s)',
-              (current_user.id, today, description, amount))
+    c.execute('INSERT INTO expenses (user_id, date, description, amount, updated_at) VALUES (%s, %s, %s, %s, %s)',
+              (current_user.id, today, description, amount, updated_at))
     conn.commit()
     conn.close()
     flash('Expense added successfully!', 'success')
