@@ -223,12 +223,14 @@ def delete_expense(token):
     flash('Expense deleted successfully!', 'success')
     return redirect(url_for('index'))
 
-
-
-
-from fpdf import FPDF
-from flask import send_file
-import io
+class PDF(FPDF):
+    def footer(self):
+        # Set position of the footer at 1.5 cm from the bottom
+        self.set_y(-15)
+        # Set font
+        self.set_font('Arial', 'I', 8)
+        # Page number
+        self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
 @app.route('/export', methods=['GET'])
 @login_required
@@ -273,7 +275,7 @@ def export_to_pdf():
     conn.close()
 
     # Create a PDF
-    pdf = FPDF()
+    pdf = PDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
 
