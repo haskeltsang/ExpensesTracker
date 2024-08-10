@@ -108,7 +108,7 @@
                         <tr>
                             <td>{{ expense[2] }}</td>
                             <td>{{ expense[3] }}</td>
-                            <td>${{ expense[4] }}</td>
+                            <td>HK${{ expense[4] }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -117,9 +117,9 @@
                 <!-- Weekly Summary -->
                 <div class="mt-4">
                     <h4>Weekly Summary</h4>
-                    <p><strong>Total Expenses for the Week:</strong> ${{ weekly_total }}</p>
-                    <p><strong>Total Expenses for TB(AS):</strong> ${{ tb_as_total }}</p>
-                    <p><strong>Total Expenses for TB:</strong> ${{ tb_total }}</p>
+                    <p><strong>Total Expenses for the Week:</strong> HK${{ weekly_total }}</p>
+                    <p><strong>Total Expenses for TB(AS):</strong> HK${{ tb_as_total }}</p>
+                    <p><strong>Total Expenses for TB:</strong> HK${{ tb_total }}</p>
                 </div>
             </div>
         </div>
