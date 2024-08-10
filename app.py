@@ -337,41 +337,45 @@ def history():
     conn = get_db_connection()
     c = conn.cursor()
     
+    # Initialize variables for week_start and week_end
+    week_start = week_end = None
+
     if request.method == 'POST':
         start_date_str = request.form['start_date']
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
         end_date = start_date + timedelta(days=6)
+        week_start = start_date
+        week_end = end_date
 
         # Fetch expenses for the selected week excluding deleted ones
         c.execute('SELECT * FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
-                (current_user.id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
+                  (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
         expenses = c.fetchall()
 
-        # Calculate weekly total excluding deleted expenses
+        # Calculate totals for the selected week excluding deleted expenses
         c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
-                (current_user.id, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
+                  (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
         weekly_total = c.fetchone()[0] or 0.0
 
         # Calculate all TB total for the selected week excluding deleted expenses
         c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description LIKE %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
-                (current_user.id, 'TB%', start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
+                  (current_user.id, 'TB%', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
         all_tb_total = c.fetchone()[0] or 0.0
 
         # Calculate TB(AS) total for the selected week excluding deleted expenses
         c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
-                (current_user.id, 'TB(AS)', start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
+                  (current_user.id, 'TB(AS)', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
         tb_as_total = c.fetchone()[0] or 0.0
 
         # Calculate TB total for the selected week excluding deleted expenses
         c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
-                (current_user.id, 'TB', start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')))
+                  (current_user.id, 'TB', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
         tb_total = c.fetchone()[0] or 0.0
 
-            # Calculate total for items not starting with "TB"
+        # Calculate total for items not starting with "TB"
         c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description NOT LIKE %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
-              (current_user.id, 'TB%', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+                  (current_user.id, 'TB%', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
         non_tb_total = c.fetchone()[0] or 0.0
-
 
     else:
         today = datetime.today()
@@ -383,12 +387,12 @@ def history():
                   (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
         expenses = c.fetchall()
 
-        # Calculate weekly total excluding deleted expenses
+        # Calculate totals for the current week excluding deleted expenses
         c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
                   (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
         weekly_total = c.fetchone()[0] or 0.0
 
-        # Calculate all TB total for the current week excluding deleted expenses
+        # Calculate all TB total for the current week excluding deleted ones
         c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description LIKE %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
                   (current_user.id, 'TB%', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
         all_tb_total = c.fetchone()[0] or 0.0
@@ -402,9 +406,10 @@ def history():
         c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
                   (current_user.id, 'TB', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
         tb_total = c.fetchone()[0] or 0.0
-            # Calculate total for items not starting with "TB"
+
+        # Calculate total for items not starting with "TB"
         c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description NOT LIKE %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
-              (current_user.id, 'TB%', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+                  (current_user.id, 'TB%', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
         non_tb_total = c.fetchone()[0] or 0.0
 
     conn.close()
