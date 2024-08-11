@@ -266,15 +266,15 @@ def export_to_csv():
         writer.writerow({
             'Date': expense[2].strftime('%Y-%m-%d'),
             'Description': expense[3],
-            'Amount': f"${expense[4]:.2f}"
+            'Amount': f"HK${expense[4]:.2f}"
         })
     
     writer.writerow({})
-    writer.writerow({'Date': 'Weekly Total', 'Description': '', 'Amount': f"${weekly_total:.2f}"})
-    writer.writerow({'Date': 'Others Total', 'Description': '', 'Amount': f"${non_tb_total:.2f}"})
-    writer.writerow({'Date': 'All TB', 'Description': '', 'Amount': f"${all_tb_total:.2f}"})
-    writer.writerow({'Date': 'Total TB(AS)', 'Description': '', 'Amount': f"${tb_as_total:.2f}"})
-    writer.writerow({'Date': 'Total TB', 'Description': '', 'Amount': f"${tb_total:.2f}"})
+    writer.writerow({'Date': 'Weekly Total', 'Description': '', 'Amount': f"HK${weekly_total:.2f}"})
+    writer.writerow({'Date': 'Others Total', 'Description': '', 'Amount': f"HK${non_tb_total:.2f}"})
+    writer.writerow({'Date': 'All TB', 'Description': '', 'Amount': f"HK${all_tb_total:.2f}"})
+    writer.writerow({'Date': 'Total TB(AS)', 'Description': '', 'Amount': f"HK${tb_as_total:.2f}"})
+    writer.writerow({'Date': 'Total TB', 'Description': '', 'Amount': f"HK${tb_total:.2f}"})
 
     output.seek(0)
 
