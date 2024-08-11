@@ -361,9 +361,10 @@ def export_to_pdf():
 
     # Add totals
     pdf.set_font("Arial", "B", 12)
-    pdf.cell(40, 10, '', 1)
-    pdf.cell(80, 10, '', 1)
-    pdf.cell(40, 10, '', 1, 1)
+    #pdf.cell(40, 10, '', 1)
+    #pdf.cell(80, 10, '', 1)
+    #pdf.cell(40, 10, '', 1, 1)
+    pdf.cell(160, 10, 'Summary', 1, 1, 'C')
 
     pdf.cell(40, 10, 'Weekly Total', 1)
     pdf.cell(80, 10, '', 1)
