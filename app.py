@@ -223,16 +223,79 @@ def delete_expense(token):
     flash('Expense deleted successfully!', 'success')
     return redirect(url_for('index'))
 
+@app.route('/export_csv', methods=['GET'])
+@login_required
+def export_to_csv():
+    conn = get_db_connection()
+    c = conn.cursor()
+
+    today = datetime.today()
+    week_start = today - timedelta(days=(today.weekday() - 0) % 7)
+    week_end = week_start + timedelta(days=6)
+
+    c.execute('SELECT * FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s',
+              (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+    expenses = c.fetchall()
+
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s',
+              (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+    weekly_total = c.fetchone()[0] or 0.0
+
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description LIKE %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+              (current_user.id, 'TB%', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+    all_tb_total = c.fetchone()[0] or 0.0
+
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND description = %s',
+              (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d'), 'TB(AS)'))
+    tb_as_total = c.fetchone()[0] or 0.0
+
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND description = %s',
+              (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d'), 'TB'))
+    tb_total = c.fetchone()[0] or 0.0
+
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description NOT LIKE %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+              (current_user.id, 'TB%', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
+    non_tb_total = c.fetchone()[0] or 0.0
+
+    conn.close()
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=['Date', 'Description', 'Amount'])
+    writer.writeheader()
+    for expense in expenses:
+        writer.writerow({
+            'Date': expense[2].strftime('%Y-%m-%d'),
+            'Description': expense[3],
+            'Amount': f"${expense[4]:.2f}"
+        })
+    
+    writer.writerow({})
+    writer.writerow({'Date': 'Weekly Total', 'Description': '', 'Amount': f"${weekly_total:.2f}"})
+    writer.writerow({'Date': 'Others Total', 'Description': '', 'Amount': f"${non_tb_total:.2f}"})
+    writer.writerow({'Date': 'All TB', 'Description': '', 'Amount': f"${all_tb_total:.2f}"})
+    writer.writerow({'Date': 'Total TB(AS)', 'Description': '', 'Amount': f"${tb_as_total:.2f}"})
+    writer.writerow({'Date': 'Total TB', 'Description': '', 'Amount': f"${tb_total:.2f}"})
+
+    output.seek(0)
+
+    return send_file(
+        io.BytesIO(output.getvalue().encode('utf-8')),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=f'expenses_summary_from_{week_start.strftime("%Y-%m-%d")}_to_{today.strftime("%Y-%m-%d")}.csv'
+    )
 class PDF(FPDF):
     def footer(self):
         # Set position of the footer at 1.5 cm from the bottom
         self.set_y(-15)
         # Set font
         self.set_font('Arial', 'I', 8)
+
+        self.cell(0, 10, f'Report generated on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', 0, 0)
         # Page number
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
-@app.route('/export', methods=['GET'])
+@app.route('/export_pdf', methods=['GET'])
 @login_required
 def export_to_pdf():
     conn = get_db_connection()
