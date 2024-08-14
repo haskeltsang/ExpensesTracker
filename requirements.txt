@@ -5,4 +5,4 @@ werkzeug
 bcrypt
 itsdangerous
 python-dotenv
-fpdf
+fpdf2
