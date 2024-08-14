@@ -388,7 +388,7 @@ def export_to_pdf():
 
     # Output the PDF to a bytes buffer
     pdf_output = io.BytesIO()
-    pdf_output.write(pdf.output(dest='S').encode('latin1'))
+    pdf_output.write(pdf.output(dest='S').encode('utf-8'))
     pdf_output.seek(0)
 
     # Send the PDF as a file download
