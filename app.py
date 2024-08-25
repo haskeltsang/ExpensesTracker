@@ -119,7 +119,8 @@ def index():
             'id': expense[0],
             'date': expense[2],
             'description': expense[3],
-            'amount': expense[4],
+            'payment': expense[4],
+            'amount': expense[5],
             'amend_url': amend_url,
             'delete_url': delete_url
         })
@@ -188,6 +189,7 @@ def logout():
 @login_required
 def add_expense():
     description = request.form['description']
+    payment = request.form['payment']
     amount = request.form['amount']
     updated_at = datetime.now()
 
@@ -195,8 +197,8 @@ def add_expense():
 
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute('INSERT INTO expenses (user_id, date, description, amount, updated_at) VALUES (%s, %s, %s, %s, %s)',
-              (current_user.id, today, description, amount, updated_at))
+    c.execute('INSERT INTO expenses (user_id, date, description, payment, amount, updated_at) VALUES (%s, %s, %s, %s, %s, %s)',
+              (current_user.id, today, description, payment, amount, updated_at))
     conn.commit()
     conn.close()
     flash('Expense added successfully!', 'success')
@@ -260,13 +262,14 @@ def export_to_csv():
     conn.close()
 
     output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=['Date', 'Description', 'Amount'])
+    writer = csv.DictWriter(output, fieldnames=['Date', 'Description', 'Payment Method', 'Amount'])
     writer.writeheader()
     for expense in expenses:
         writer.writerow({
             'Date': expense[2].strftime('%Y-%m-%d'),
             'Description': expense[3],
-            'Amount': f"HK${expense[4]:.2f}"
+            'Payment Method': expense[4],
+            'Amount': f"HK${expense[5]:.2f}"
         })
     
     writer.writerow({})
@@ -354,6 +357,7 @@ def export_to_pdf():
     pdf.set_font("kai", "B", 12)
     pdf.cell(40, 10, "Date", 1, 0, 'C')
     pdf.cell(80, 10, "Description", 1, 0, 'C')
+    pdf.cell(40, 10, "Payment Method", 1, 0, 'C')
     pdf.cell(40, 10, "Amount", 1, 1, 'C')
 
     # Add data rows
@@ -361,33 +365,34 @@ def export_to_pdf():
     for expense in expenses:
         pdf.cell(40, 10, expense[2].strftime('%Y-%m-%d'), 1)
         pdf.cell(80, 10, expense[3], 1)
-        pdf.cell(40, 10, f"HK${expense[4]:.2f}", 1, 1)
+        pdf.cell(40, 10, expense[4], 1)
+        pdf.cell(40, 10, f"HK${expense[5]:.2f}", 1, 1)
 
     # Add totals
     pdf.set_font("kai", "B", 12)
     #pdf.cell(40, 10, '', 1)
     #pdf.cell(80, 10, '', 1)
     #pdf.cell(40, 10, '', 1, 1)
-    pdf.cell(160, 10, 'Summary', 1, 1, 'C')
+    pdf.cell(200, 10, 'Summary', 1, 1, 'C')
 
     pdf.cell(40, 10, 'Weekly Total', 1)
-    pdf.cell(80, 10, '', 1)
+    pdf.cell(120, 10, '', 1)
     pdf.cell(40, 10, f"HK${weekly_total:.2f}", 1, 1)
 
     pdf.cell(40, 10, 'Others Total', 1)
-    pdf.cell(80, 10, '', 1)
+    pdf.cell(120, 10, '', 1)
     pdf.cell(40, 10, f"HK${non_tb_total:.2f}", 1, 1)
 
     pdf.cell(40, 10, 'All TB', 1)
-    pdf.cell(80, 10, '', 1)
+    pdf.cell(120, 10, '', 1)
     pdf.cell(40, 10, f"HK${all_tb_total:.2f}", 1, 1)
 
     pdf.cell(40, 10, 'Total TB(AS)', 1)
-    pdf.cell(80, 10, '', 1)
+    pdf.cell(120, 10, '', 1)
     pdf.cell(40, 10, f"HK${tb_as_total:.2f}", 1, 1)
 
     pdf.cell(40, 10, 'Total TB', 1)
-    pdf.cell(80, 10, '', 1)
+    pdf.cell(120, 10, '', 1)
     pdf.cell(40, 10, f"HK${tb_total:.2f}", 1, 1)
 
     # Output the PDF to a bytes buffer
@@ -509,11 +514,12 @@ def amend_expense(token):
     if request.method == 'POST':
         description = request.form['description']
         amount = request.form['amount']
+        payment = request.form['payment']
         updated_at = datetime.now()
 
         # Update the expense with new values and update the updated_at timestamp
-        c.execute('UPDATE expenses SET description = %s, amount = %s, updated_at = %s WHERE id = %s AND user_id = %s',
-                  (description, amount, updated_at, id, current_user.id))
+        c.execute('UPDATE expenses SET description = %s, payment = %s, amount = %s, updated_at = %s WHERE id = %s AND user_id = %s',
+                  (description, payment, amount, updated_at, id, current_user.id))
         conn.commit()
         conn.close()
 

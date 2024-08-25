@@ -100,6 +100,7 @@
                         <tr>
                             <th>Date</th>
                             <th>Description</th>
+                            <th>Payment Method</th>
                             <th>Amount</th>
                         </tr>
                     </thead>
@@ -108,7 +109,8 @@
                         <tr>
                             <td>{{ expense[2] }}</td>
                             <td>{{ expense[3] }}</td>
-                            <td>HK${{ expense[4] }}</td>
+                            <td>{{ expense[4] }}</td>
+                            <td>HK${{ expense[5] }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
