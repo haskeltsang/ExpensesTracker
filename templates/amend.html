@@ -79,7 +79,16 @@
                 </div>
                 <div class="mb-3">
                     <label for="payment" class="form-label">Payment Method</label>
-                    <input type="text" class="form-control" id="payment" name="payment" value="{{ expense[4] }}" required>
+                    <select class="form-control" id="payment" name="payment" required>
+                        <option value="" disabled selected>Select Payment Method</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Citi">Citi</option>
+                        <option value="HSBC Platinum">HSBC Platinum</option>
+                        <option value="HSBC Signature">HSBC Signature</option>
+                        <option value="HSBC Gold">HSBC Gold</option>
+                        <option value="BOCHK(TB)">BOCHK(TB)</option>
+                        <option value="SCBHK">SCBHK</option>
+                    </select>
                 </div>
                 <div class="mb-3">
                     <label for="amount" class="form-label">Amount</label>
