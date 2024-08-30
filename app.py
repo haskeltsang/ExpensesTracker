@@ -554,7 +554,7 @@ def send_email_with_attachment(subject, body, to_email, attachment_filename, att
     part.add_header('Content-Disposition', f'attachment; filename={attachment_filename}')
     msg.attach(part)
 
-    server = smtplib.SMTP('smtp.example.com', 587)
+    server = smtplib.SMTP(os.getenv('SMTP_ADDRESS'), os.getenv('SMTP_PORT'))
     server.starttls()
     server.login(from_email, password)
     text = msg.as_string()
@@ -575,22 +575,22 @@ def export_monthly_report():
     c.execute('SELECT * FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
               (user_id, month_start.strftime('%Y-%m-%d'), month_end.strftime('%Y-%m-%d')))
     expenses = c.fetchall()
-     # Calculate weekly total excluding deleted expenses
+     # Calculate monthly total excluding deleted expenses
     c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
               (user_id, month_start.strftime('%Y-%m-%d'), month_end.strftime('%Y-%m-%d')))
-    weekly_total = c.fetchone()[0] or 0.0
+    monthly_total = c.fetchone()[0] or 0.0
 
-    # Calculate all TB total for the current week excluding deleted expenses
+    # Calculate all TB total for the current month excluding deleted expenses
     c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description LIKE %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
               (user_id, 'TB%', month_start.strftime('%Y-%m-%d'), month_end.strftime('%Y-%m-%d')))
     all_tb_total = c.fetchone()[0] or 0.0
 
-    # Calculate TB(AS) total for the current week excluding deleted expenses
+    # Calculate TB(AS) total for the current month excluding deleted expenses
     c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
               (user_id, 'TB(AS)', month_start.strftime('%Y-%m-%d'), month_end.strftime('%Y-%m-%d')))
     tb_as_total = c.fetchone()[0] or 0.0
 
-    # Calculate TB total for the current week excluding deleted expenses
+    # Calculate TB total for the current month excluding deleted expenses
     c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
               (user_id, 'TB', month_start.strftime('%Y-%m-%d'), month_end.strftime('%Y-%m-%d')))
     tb_total = c.fetchone()[0] or 0.0
@@ -633,7 +633,7 @@ def export_monthly_report():
 
     pdf.cell(40, 10, 'Monthly Total', 1)
     pdf.cell(120, 10, '', 1)
-    pdf.cell(40, 10, f"HK${weekly_total:.2f}", 1, 1)
+    pdf.cell(40, 10, f"HK${monthly_total:.2f}", 1, 1)
 
     pdf.cell(40, 10, 'Others Total', 1)
     pdf.cell(120, 10, '', 1)
@@ -659,7 +659,7 @@ def export_monthly_report():
     send_email_with_attachment(
         subject="Monthly Expenses Report",
         body="Please find attached your monthly expenses report.",
-        to_email="test@example.com",  # Replace with the target email address
+        to_email=os.getenv('DEST_EMAIL'),  
         attachment_filename=f'monthly_report_{today.strftime("%Y_%m")}.pdf',
         attachment_data=pdf_output.read()
     )
