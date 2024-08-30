@@ -575,7 +575,30 @@ def export_monthly_report():
     c.execute('SELECT * FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
               (user_id, month_start.strftime('%Y-%m-%d'), month_end.strftime('%Y-%m-%d')))
     expenses = c.fetchall()
+     # Calculate weekly total excluding deleted expenses
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+              (user_id, month_start.strftime('%Y-%m-%d'), month_end.strftime('%Y-%m-%d')))
+    weekly_total = c.fetchone()[0] or 0.0
 
+    # Calculate all TB total for the current week excluding deleted expenses
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description LIKE %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+              (user_id, 'TB%', month_start.strftime('%Y-%m-%d'), month_end.strftime('%Y-%m-%d')))
+    all_tb_total = c.fetchone()[0] or 0.0
+
+    # Calculate TB(AS) total for the current week excluding deleted expenses
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+              (user_id, 'TB(AS)', month_start.strftime('%Y-%m-%d'), month_end.strftime('%Y-%m-%d')))
+    tb_as_total = c.fetchone()[0] or 0.0
+
+    # Calculate TB total for the current week excluding deleted expenses
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+              (user_id, 'TB', month_start.strftime('%Y-%m-%d'), month_end.strftime('%Y-%m-%d')))
+    tb_total = c.fetchone()[0] or 0.0
+
+    # Calculate total for items not starting with "TB"
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND description NOT LIKE %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+              (user_id, 'TB%', month_start.strftime('%Y-%m-%d'), month_end.strftime('%Y-%m-%d')))
+    non_tb_total = c.fetchone()[0] or 0.0
     conn.close()
 
     # Create a PDF as before
@@ -601,7 +624,32 @@ def export_monthly_report():
         pdf.cell(80, 10, expense[3], 1)
         pdf.cell(40, 10, expense[4], 1)
         pdf.cell(40, 10, f"HK${expense[5]:.2f}", 1, 1)
+        # Add totals
+    pdf.set_font("kai", "B", 12)
+    #pdf.cell(40, 10, '', 1)
+    #pdf.cell(80, 10, '', 1)
+    #pdf.cell(40, 10, '', 1, 1)
+    pdf.cell(200, 10, 'Summary', 1, 1, 'C')
 
+    pdf.cell(40, 10, 'Monthly Total', 1)
+    pdf.cell(120, 10, '', 1)
+    pdf.cell(40, 10, f"HK${weekly_total:.2f}", 1, 1)
+
+    pdf.cell(40, 10, 'Others Total', 1)
+    pdf.cell(120, 10, '', 1)
+    pdf.cell(40, 10, f"HK${non_tb_total:.2f}", 1, 1)
+
+    pdf.cell(40, 10, 'All TB', 1)
+    pdf.cell(120, 10, '', 1)
+    pdf.cell(40, 10, f"HK${all_tb_total:.2f}", 1, 1)
+
+    pdf.cell(40, 10, 'Total TB(AS)', 1)
+    pdf.cell(120, 10, '', 1)
+    pdf.cell(40, 10, f"HK${tb_as_total:.2f}", 1, 1)
+
+    pdf.cell(40, 10, 'Total TB', 1)
+    pdf.cell(120, 10, '', 1)
+    pdf.cell(40, 10, f"HK${tb_total:.2f}", 1, 1)
     # Output the PDF to a bytes buffer
     pdf_output = io.BytesIO()
     pdf_output.write(pdf.output(dest='S'))
@@ -616,14 +664,14 @@ def export_monthly_report():
         attachment_data=pdf_output.read()
     )
 
-#def schedule_test_report():
-#    scheduler = BackgroundScheduler()
-#    # Set the trigger now
-#    trigger = DateTrigger(run_date=datetime.now())
-#    scheduler.add_job(export_monthly_report, trigger)
-#    scheduler.start()
+def schedule_test_report():
+    scheduler = BackgroundScheduler()
+    # Set the trigger now
+    trigger = DateTrigger(run_date=datetime.now())
+    scheduler.add_job(export_monthly_report, trigger)
+    scheduler.start()
 
-#schedule_test_report()
+schedule_test_report()
 
 def schedule_monthly_report():
     scheduler = BackgroundScheduler()
