@@ -10,6 +10,14 @@ import io
 import os
 from datetime import datetime, timedelta
 from itsdangerous import URLSafeSerializer, URLSafeTimedSerializer
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+from apscheduler.triggers.date import DateTrigger
 
 load_dotenv()
 app = Flask(__name__)
@@ -529,6 +537,101 @@ def amend_expense(token):
     conn.close()
     return render_template('amend.html', expense=expense)
 
+def send_email_with_attachment(subject, body, to_email, attachment_filename, attachment_data):
+    from_email = os.getenv('EMAIL_ADDRESS')
+    password = os.getenv('EMAIL_PASSWORD')
+
+    msg = MIMEMultipart()
+    msg['From'] = from_email
+    msg['To'] = to_email
+    msg['Subject'] = subject
+
+    msg.attach(MIMEText(body, 'plain'))
+
+    part = MIMEBase('application', 'octet-stream')
+    part.set_payload(attachment_data)
+    encoders.encode_base64(part)
+    part.add_header('Content-Disposition', f'attachment; filename={attachment_filename}')
+    msg.attach(part)
+
+    server = smtplib.SMTP('smtp.example.com', 587)
+    server.starttls()
+    server.login(from_email, password)
+    text = msg.as_string()
+    server.sendmail(from_email, to_email, text)
+    server.quit()
+
+def export_monthly_report():
+    conn = get_db_connection()
+    c = conn.cursor()
+
+    today = datetime.today()
+    month_start = today.replace(day=1)
+    next_month = today.replace(day=28) + timedelta(days=4)
+    month_end = next_month - timedelta(days=next_month.day)
+
+    # If it's user-specific, replace `user_id` with a fixed ID or loop over multiple users.
+    user_id = 1  # Replace with a specific user ID or loop through users
+    c.execute('SELECT * FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
+              (user_id, month_start.strftime('%Y-%m-%d'), month_end.strftime('%Y-%m-%d')))
+    expenses = c.fetchall()
+
+    conn.close()
+
+    # Create a PDF as before
+    pdf = PDF()
+    pdf.add_page()
+    pdf.add_font("kai", "", "kaiu.ttf",)
+    pdf.add_font("kai", "B", "kaiu.ttf", uni=True)
+    pdf.add_font("kai", "I", "kaiu.ttf", uni=True)
+    pdf.set_font("kai", size=12)
+
+    pdf.set_font("kai", "B", 16)
+    pdf.cell(0, 10, f"Monthly Expenses Summary for {today.strftime('%B %Y')}", 0, 1, 'C')
+
+    pdf.set_font("kai", "B", 12)
+    pdf.cell(40, 10, "Date", 1, 0, 'C')
+    pdf.cell(80, 10, "Description", 1, 0, 'C')
+    pdf.cell(40, 10, "Payment Method", 1, 0, 'C')
+    pdf.cell(40, 10, "Amount", 1, 1, 'C')
+
+    pdf.set_font("kai", size=12)
+    for expense in expenses:
+        pdf.cell(40, 10, expense[2].strftime('%Y-%m-%d'), 1)
+        pdf.cell(80, 10, expense[3], 1)
+        pdf.cell(40, 10, expense[4], 1)
+        pdf.cell(40, 10, f"HK${expense[5]:.2f}", 1, 1)
+
+    # Output the PDF to a bytes buffer
+    pdf_output = io.BytesIO()
+    pdf_output.write(pdf.output(dest='S'))
+    pdf_output.seek(0)
+
+    # Send the email with the PDF attached
+    send_email_with_attachment(
+        subject="Monthly Expenses Report",
+        body="Please find attached your monthly expenses report.",
+        to_email="test@example.com",  # Replace with the target email address
+        attachment_filename=f'monthly_report_{today.strftime("%Y_%m")}.pdf',
+        attachment_data=pdf_output.read()
+    )
+
+#def schedule_test_report():
+#    scheduler = BackgroundScheduler()
+#    # Set the trigger now
+#    trigger = DateTrigger(run_date=datetime.now())
+#    scheduler.add_job(export_monthly_report, trigger)
+#    scheduler.start()
+
+#schedule_test_report()
+
+def schedule_monthly_report():
+    scheduler = BackgroundScheduler()
+    trigger = CronTrigger(day='last', hour=23, minute=59)  # Adjust the timing as needed
+    scheduler.add_job(export_monthly_report, trigger)
+    scheduler.start()
+
+schedule_monthly_report()
 
 
 

@@ -6,3 +6,4 @@ bcrypt
 itsdangerous
 python-dotenv
 fpdf2
+APScheduler
