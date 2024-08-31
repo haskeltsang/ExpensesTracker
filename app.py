@@ -675,7 +675,7 @@ schedule_test_report()
 
 def schedule_monthly_report():
     scheduler = BackgroundScheduler()
-    trigger = CronTrigger(day='last', hour=23, minute=59)  # Adjust the timing as needed
+    trigger = CronTrigger(day='last', hour=23, minute=59, second=59)  # Adjust the timing as needed
     scheduler.add_job(export_monthly_report, trigger)
     scheduler.start()
 
