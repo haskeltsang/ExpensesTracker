@@ -604,28 +604,28 @@ def export_monthly_report():
     # Create a PDF as before
     pdf = PDF()
     pdf.add_page()
-    pdf.add_font("kai", "", "kaiu.ttf",)
-    pdf.add_font("kai", "B", "kaiu.ttf", uni=True)
-    pdf.add_font("kai", "I", "kaiu.ttf", uni=True)
-    pdf.set_font("kai", size=12)
+    pdf.add_font("ns", "", "NotoSansHK-Regular.ttf",)
+    pdf.add_font("ns-b", "B", "NotoSansHK-Bold.ttf", uni=True)
+    pdf.add_font("ns", "I", "NotoSansHK-Regular.ttf", uni=True)
+    pdf.set_font("ns", size=12)
 
-    pdf.set_font("kai", "B", 16)
+    pdf.set_font("ns-b", "B", 16)
     pdf.cell(0, 10, f"Monthly Expenses Summary for {today.strftime('%B %Y')}", 0, 1, 'C')
 
-    pdf.set_font("kai", "B", 12)
+    pdf.set_font("ns-b", "B", 12)
     pdf.cell(40, 10, "Date", 1, 0, 'C')
     pdf.cell(80, 10, "Description", 1, 0, 'C')
     pdf.cell(40, 10, "Payment Method", 1, 0, 'C')
     pdf.cell(40, 10, "Amount", 1, 1, 'C')
 
-    pdf.set_font("kai", size=12)
+    pdf.set_font("ns", size=12)
     for expense in expenses:
         pdf.cell(40, 10, expense[2].strftime('%Y-%m-%d'), 1)
         pdf.cell(80, 10, expense[3], 1)
         pdf.cell(40, 10, expense[4], 1)
         pdf.cell(40, 10, f"HK${expense[5]:.2f}", 1, 1)
         # Add totals
-    pdf.set_font("kai", "B", 12)
+    pdf.set_font("ns", "B", 12)
     #pdf.cell(40, 10, '', 1)
     #pdf.cell(80, 10, '', 1)
     #pdf.cell(40, 10, '', 1, 1)
