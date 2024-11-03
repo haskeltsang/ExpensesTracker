@@ -243,11 +243,11 @@ def export_to_csv():
     week_start = today - timedelta(days=(today.weekday() - 0) % 7)
     week_end = week_start + timedelta(days=6)
 
-    c.execute('SELECT * FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s',
+    c.execute('SELECT * FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
               (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     expenses = c.fetchall()
 
-    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s',
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND deleted_at IS NULL',
               (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     weekly_total = c.fetchone()[0] or 0.0
 
@@ -255,11 +255,11 @@ def export_to_csv():
               (current_user.id, 'TB%', week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d')))
     all_tb_total = c.fetchone()[0] or 0.0
 
-    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND description = %s',
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND description = %s AND deleted_at IS NULL',
               (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d'), 'TB(AS)'))
     tb_as_total = c.fetchone()[0] or 0.0
 
-    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND description = %s',
+    c.execute('SELECT SUM(amount) FROM expenses WHERE user_id = %s AND date BETWEEN %s AND %s AND description = %s AND deleted_at IS NULL',
               (current_user.id, week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d'), 'TB'))
     tb_total = c.fetchone()[0] or 0.0
 
