@@ -298,10 +298,10 @@ def export_to_csv():
 class PDF(FPDF):
     def footer(self):
         # Set position of the footer at 1.5 cm from the bottom & set UTF-8 ttf
-        self.add_font("kai", "I", "kaiu.ttf", uni=True)
+        self.add_font("ns", "I", "NotoSansHK-Regular.ttf", uni=True)
         self.set_y(-15)
         # Set font
-        self.set_font('kai', 'I', 8)
+        self.set_font('ns', 'I', 8)
 
         self.cell(0, 10, f'Report generated on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', 0, 0)
         # Page number
@@ -352,24 +352,24 @@ def export_to_pdf():
     # Create a PDF
     pdf = PDF()
     pdf.add_page()
-    pdf.add_font("kai", "", "kaiu.ttf",)
-    pdf.add_font("kai", "B", "kaiu.ttf", uni=True)
-    pdf.add_font("kai", "I", "kaiu.ttf", uni=True)
-    pdf.set_font("kai", size=12)
+    pdf.add_font("ns", "", "NotoSansHK-Regular.ttf",)
+    pdf.add_font("ns-b", "B", "NotoSansHK-Bold.ttf", uni=True)
+    pdf.add_font("ns", "I", "NotoSansHK-Regular.ttf", uni=True)
+    pdf.set_font("ns", size=12)
 
     # Add a title
-    pdf.set_font("kai", "B", 16)
+    pdf.set_font("ns-b", "B", 16)
     pdf.cell(0, 10, f"Expenses Summary from {week_start.strftime('%Y-%m-%d')} to {today.strftime('%Y-%m-%d')}", 0, 1, 'C')
 
     # Add header row
-    pdf.set_font("kai", "B", 12)
+    pdf.set_font("ns-b", "B", 12)
     pdf.cell(40, 10, "Date", 1, 0, 'C')
     pdf.cell(80, 10, "Description", 1, 0, 'C')
     pdf.cell(40, 10, "Payment Method", 1, 0, 'C')
     pdf.cell(40, 10, "Amount", 1, 1, 'C')
 
     # Add data rows
-    pdf.set_font("kai", size=12)
+    pdf.set_font("ns", size=12)
     for expense in expenses:
         pdf.cell(40, 10, expense[2].strftime('%Y-%m-%d'), 1)
         pdf.cell(80, 10, expense[3], 1)
@@ -377,7 +377,7 @@ def export_to_pdf():
         pdf.cell(40, 10, f"HK${expense[5]:.2f}", 1, 1)
 
     # Add totals
-    pdf.set_font("kai", "B", 12)
+    pdf.set_font("ns-b", "B", 12)
     #pdf.cell(40, 10, '', 1)
     #pdf.cell(80, 10, '', 1)
     #pdf.cell(40, 10, '', 1, 1)
