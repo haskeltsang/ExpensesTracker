@@ -625,7 +625,7 @@ def export_monthly_report():
         pdf.cell(40, 10, expense[4], 1)
         pdf.cell(40, 10, f"HK${expense[5]:.2f}", 1, 1)
         # Add totals
-    pdf.set_font("ns", "B", 12)
+    pdf.set_font("ns-b", "B", 12)
     #pdf.cell(40, 10, '', 1)
     #pdf.cell(80, 10, '', 1)
     #pdf.cell(40, 10, '', 1, 1)
